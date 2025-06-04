@@ -2,7 +2,7 @@
 ARG ROS_DISTRO=jazzy
 
 #######################################
-# Base Image for TurtleBot Simulation #
+# Base Image for ROS2 #
 #######################################
 FROM ros:${ROS_DISTRO} AS base
 ENV ROS_DISTRO=${ROS_DISTRO}
@@ -23,23 +23,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 # Create Colcon workspace with external dependencies
-RUN mkdir -p /turtlebot_ws/src
-WORKDIR /turtlebot_ws/src
+RUN mkdir -p /ros_ws/src
+WORKDIR /ros_ws/src
 COPY dependencies.repos .
 RUN vcs import < dependencies.repos
 
 # Build the base Colcon workspace, installing dependencies first.
-WORKDIR /turtlebot_ws
+WORKDIR /ros_ws
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
  && apt-get update -y \
  && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
  && colcon build --symlink-install
-ENV TURTLEBOT_MODEL=3
 
-# Download Groot2 AppImage and place it in the home folder.
-WORKDIR /root/
-RUN curl -o Groot2.AppImage https://s3.us-west-1.amazonaws.com/download.behaviortree.dev/groot2_linux_installer/Groot2-v1.6.1-x86_64.AppImage \
- && chmod a+x Groot2.AppImage
 
 # Remove display warnings
 RUN mkdir /tmp/runtime-root
@@ -48,21 +43,19 @@ RUN chmod -R 0700 /tmp/runtime-root
 ENV NO_AT_BRIDGE 1
 
 # Set up the entrypoint
-WORKDIR /turtlebot_ws
+WORKDIR /ros_ws
 COPY --chmod=755 ./docker/entrypoint.sh /
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 ##########################################
-# Overlay Image for TurtleBot Simulation #
+# Overlay Image for ... #
 ##########################################
 FROM base AS overlay
 
 # Create an overlay Colcon workspace
 RUN mkdir -p /overlay_ws/src
 WORKDIR /overlay_ws
-COPY ./tb_autonomy/ ./src/tb_autonomy/
-COPY ./tb_worlds/ ./src/tb_worlds/
-RUN source /turtlebot_ws/install/setup.bash \
+RUN source /ros_ws/install/setup.bash \
  && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
  && colcon build --symlink-install
 
@@ -100,12 +93,6 @@ RUN groupadd --gid $GID $USERNAME \
 
 # Set the ownership of the overlay workspace to the new user
 RUN chown -R ${UID}:${GID} /overlay_ws/
-
-# Move Groot2 to new user's home directory and ensure it can be run
-RUN groupadd fuse \
- && usermod -aG fuse ${USERNAME}
-RUN mv /root/Groot2.AppImage /home/${USERNAME} \ 
- && chown ${UID}:${GID} /home/${USERNAME}/Groot2.AppImage
 
 # Set up the entrypoint, including it in the .bashrc for interactive shells
 USER ${USERNAME}

@@ -6,10 +6,10 @@ source /opt/ros/${ROS_DISTRO}/setup.bash
 echo "Sourced ROS 2 ${ROS_DISTRO}"
 
 # Source the base workspace, if built
-if [ -f /turtlebot_ws/install/setup.bash ]
+if [ -f /ros_ws/install/setup.bash ]
 then
-  source /turtlebot_ws/install/setup.bash
-  echo "Sourced TurtleBot base workspace"
+  source /ros_ws/install/setup.bash
+  echo "Sourced ROS2 base workspace"
 fi
 
 # Source the overlay workspace, if built
